@@ -20,6 +20,7 @@ type Event int
 const (
     EV_EXIT Event = iota
     EV_ERROR
+    EV_UP
     EV_LEFT
     EV_RIGHT
     EV_SPACE
@@ -45,6 +46,16 @@ type Display struct {
     // at present.
     Matrix []bool
     DP *os.File
+}
+
+type ReaderState int
+const (
+    R_IDLE ReaderState = iota
+    R_ESC
+    R_CSI
+)
+type Reader struct {
+    State ReaderState
 }
 
 func NewCan() *Can {
@@ -100,6 +111,9 @@ func (d *Display) Time(mt time.Duration) {
 }
 
 func reader(mainChan chan Event) {
+
+    var state Reader
+
     var buf []byte
     buf = make([]byte, 1)
 
@@ -119,6 +133,31 @@ func reader(mainChan chan Event) {
         if buf[0] == ([]byte("q"))[0] || buf[0] == 0x03 {
             mainChan <- EV_EXIT
             break
+        }
+
+        // XXX This needs a timer to catch a standalone ESC.
+        switch state.State {
+        case R_IDLE:
+            if buf[0] == 0x1b {
+                state.State = R_ESC
+            } else if buf[0] == ' ' {
+                mainChan <- EV_SPACE
+            }
+        case R_ESC:
+            if buf[0] == 0x5b {
+                state.State = R_CSI
+            } else {
+                state.State = R_IDLE
+            }
+        case R_CSI:
+            if buf[0] == 'A' {
+                mainChan <- EV_UP
+            } else if buf[0] == 'D' {
+                mainChan <- EV_LEFT
+            } else if buf[0] == 'C' {
+                mainChan <- EV_RIGHT
+            }
+            state.State = R_IDLE
         }
     }
 }
@@ -165,7 +204,11 @@ func _main() error {
             break
         }
 
-        if ev == EV_TIME {
+        if ev == EV_SPACE {          // land
+        } else if ev == EV_UP {      // rotate
+        } else if ev == EV_LEFT {    // left
+        } else if ev == EV_RIGHT {   // right
+        } else {  // EV_TIME
             d := time.Since(can.MissionStart)
             if int(d.Seconds()) != int(can.MissionTime.Seconds()) {
                 can.MissionTime = d
