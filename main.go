@@ -5,10 +5,13 @@ import (
     "fmt"
     // "math/rand"
     "os"
+
+    "golang.org/x/term"
 )
 
 const ROWS int = 20;  // we'll do tcgetattr later, maybe
 const COLS int = 10;
+const TROFF int = 1;   // Header line
 const TCOFF int = 5;   // just because
 
 // Initial representation is hand-rolled matrix, made out of a slice.
@@ -45,7 +48,7 @@ func NewDisplay() *Display {
 func (d *Display) Update(newcan *Can) {
     // Full refresh
     // We can at least economize on syscalls.
-    d.DP.Write([]byte("\033[0;0H"))
+    d.DP.Write([]byte(fmt.Sprintf("\033[%d;1H", TROFF+1)))
     for i := 0; i < ROWS; i++ {
         line := ""
         for j := 0; j < COLS; j++ {
@@ -61,7 +64,33 @@ func (d *Display) Update(newcan *Can) {
     }
 }
 
+func reader(exitChan chan int) {
+    var buf []byte
+    buf = make([]byte, 1)
+
+    _, err := os.Stdin.Read(buf)
+
+    if err != nil {
+        exitChan <- 1
+    } else {
+        exitChan <- 0
+    }
+}
+
 func _main() error {
+
+    exitChan := make(chan int)
+
+    // This might need to be associated with the DP, use int(os.Stdin.Fd()).
+    // But our current Display does not have open and close.
+    // XXX Save or extract the keyboard interrupt character.
+    termState, err := term.MakeRaw(1)
+    if err != nil {
+        return err
+    }
+    // We want to print something after we restore the terminal.
+    // defer term.Restore(1, termState)
+
     erase := []byte("\033[2J")
     os.Stdout.Write(erase)
 
@@ -69,6 +98,16 @@ func _main() error {
     dp := NewDisplay()
 
     dp.Update(can)
+
+    go reader(exitChan)
+
+    var n int
+    n = <- exitChan
+
+    dp.DP.Write([]byte(fmt.Sprintf("\033[%d;1H", TROFF+ROWS+1)))
+    term.Restore(1, termState)
+
+    os.Stderr.Write([]byte(fmt.Sprintf("Goodbye %d\n", n)))
 
     return nil
 }
