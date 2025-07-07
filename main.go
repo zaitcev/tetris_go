@@ -6,6 +6,7 @@ import (
     "fmt"
     // "math/rand"
     "os"
+    "time"
 
     "golang.org/x/term"
 )
@@ -30,8 +31,13 @@ var lastLetter error	// Letter from beyond the grave
 // Initial representation is hand-rolled matrix, made out of a slice.
 // We use a slice in case we want to change the size of the can dynamically.
 // Note that rows start at the bottom of the can and go up, just because.
+//
+// This has turned into a general game state class.
 type Can struct {
     Matrix []bool
+
+    MissionStart time.Time
+    MissionTime time.Duration    // last displayed
 }
 
 type Display struct {
@@ -46,6 +52,10 @@ func NewCan() *Can {
 
     ret = new(Can)
     ret.Matrix = make([]bool, COLS*ROWS)
+
+    ret.MissionStart = time.Now()
+    ret.MissionTime = 0
+
     return ret
 }
 
@@ -58,6 +68,12 @@ func NewDisplay() *Display {
     return ret
 }
 
+func (d *Display) Erase(newcan *Can) {
+    d.DP.Write([]byte("\033[2J"))
+}
+
+// Update only updates the representation of the game field within the can.
+// It does not update the mission status banner. Maybe change it?
 func (d *Display) Update(newcan *Can) {
     // Full refresh
     // We can at least economize on syscalls.
@@ -74,6 +90,13 @@ func (d *Display) Update(newcan *Can) {
         d.DP.Write([]byte(line))
     }
     d.DP.Write([]byte(fmt.Sprintf("\033[1;1H")))
+}
+
+func (d *Display) Time(mt time.Duration) {
+    line := fmt.Sprintf("\033[%d;%dH", 1, TCOFF+20+1)
+    line += fmt.Sprintf("%ds", int(mt.Seconds()))
+    line += fmt.Sprintf("\033[1;1H")
+    d.DP.Write([]byte(line))
 }
 
 func reader(mainChan chan Event) {
@@ -100,6 +123,14 @@ func reader(mainChan chan Event) {
     }
 }
 
+func timer(mainChan chan Event) {
+    for {
+        // XXX de-skew
+        time.Sleep(1000 * time.Millisecond)
+        mainChan <- EV_TIME
+    }
+}
+
 func _main() error {
 
     mainChan := make(chan Event)
@@ -114,24 +145,32 @@ func _main() error {
     // We want to print something after we restore the terminal.
     // defer term.Restore(1, termState)
 
-    erase := []byte("\033[2J")
-    os.Stdout.Write(erase)
-
     can := NewCan()
     dp := NewDisplay()
-
+    dp.Erase(can)
     dp.Update(can)
 
     go reader(mainChan)
+    go timer(mainChan)
+    dp.Time(can.MissionTime)
 
     // This is a STEM model, but only because the game is so simple.
     // If it had enemies or phenomena, it would have more threads.
+    /// XXX do something for a situation of the updater not keeping up
     var ev Event
     for {
         ev = <- mainChan
 
         if ev == EV_EXIT || ev == EV_ERROR {
             break
+        }
+
+        if ev == EV_TIME {
+            d := time.Since(can.MissionStart)
+            if int(d.Seconds()) != int(can.MissionTime.Seconds()) {
+                can.MissionTime = d
+                dp.Time(can.MissionTime)
+            }
         }
     }
 
