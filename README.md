@@ -1,4 +1,4 @@
-The "tetris_go" is a doodle in Go(lang).
+The `tetris_go` is a doodle in Go(lang).
 
     go mod tidy
     go vet .

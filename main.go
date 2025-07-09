@@ -9,6 +9,11 @@ import (
     "time"
 
     "golang.org/x/term"
+
+    // main.go:13:5: package game is not in std (/usr/lib/golang/src/game)
+    // found packages game (game.go) and main (main.go)
+    // XXX move to subdirectory?
+    "zaitcev.us/tetris/game"
 )
 
 const ROWS int = 20;  // we'll do tcgetattr later, maybe
@@ -29,18 +34,6 @@ const (
 
 var lastLetter error	// Letter from beyond the grave
 
-// Initial representation is hand-rolled matrix, made out of a slice.
-// We use a slice in case we want to change the size of the can dynamically.
-// Note that rows start at the bottom of the can and go up, just because.
-//
-// This has turned into a general game state class.
-type Can struct {
-    Matrix []bool
-
-    MissionStart time.Time
-    MissionTime time.Duration    // last displayed
-}
-
 type Display struct {
     // This looks exactly like a Can but represents what is displayed
     // at present.
@@ -58,18 +51,6 @@ type Reader struct {
     State ReaderState
 }
 
-func NewCan() *Can {
-    var ret *Can
-
-    ret = new(Can)
-    ret.Matrix = make([]bool, COLS*ROWS)
-
-    ret.MissionStart = time.Now()
-    ret.MissionTime = 0
-
-    return ret
-}
-
 func NewDisplay() *Display {
     var ret *Display
 
@@ -79,19 +60,29 @@ func NewDisplay() *Display {
     return ret
 }
 
-func (d *Display) Erase(newcan *Can) {
+func (d *Display) Erase() {
     d.DP.Write([]byte("\033[2J"))
 }
 
 // Update only updates the representation of the game field within the can.
 // It does not update the mission status banner. Maybe change it?
-func (d *Display) Update(newcan *Can) {
+func (d *Display) Update(newcan *game.Can, curfig game.Figure) {
+
+    field := make([]bool, COLS*ROWS)
+    copy(field, newcan.Matrix)
+
+    // XXX Check for a conflict of the new figure with the can, it's game over.
+    land := curfig.Land()
+    for i := range land {
+        field[land[i].Row()*COLS + land[i].Column()] = true
+    }
+
     // Full refresh
     // We can at least economize on syscalls.
     for i := 0; i < ROWS; i++ {
         line := fmt.Sprintf("\033[%d;%dH", TROFF+i+1, TCOFF+1)
         for j := 0; j < COLS; j++ {
-            v := d.Matrix[(ROWS-1-i)*COLS + j]
+            v := field[(ROWS-1-i)*COLS + j]
             if v {
                 line += "[=]"
             } else {
@@ -101,6 +92,7 @@ func (d *Display) Update(newcan *Can) {
         d.DP.Write([]byte(line))
     }
     d.DP.Write([]byte(fmt.Sprintf("\033[1;1H")))
+    d.Matrix = field
 }
 
 func (d *Display) Time(mt time.Duration) {
@@ -184,10 +176,12 @@ func _main() error {
     // We want to print something after we restore the terminal.
     // defer term.Restore(1, termState)
 
-    can := NewCan()
+    can := game.NewCan(COLS, ROWS)
     dp := NewDisplay()
-    dp.Erase(can)
-    dp.Update(can)
+    dp.Erase()
+
+    curfig := game.NewFigure(COLS, ROWS)
+    dp.Update(can, curfig)
 
     go reader(mainChan)
     go timer(mainChan)
