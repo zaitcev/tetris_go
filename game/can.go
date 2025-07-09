@@ -37,3 +37,48 @@ func NewCan(cols int, rows int) *Can {
 
     return ret
 }
+
+// Drop the figure down as far as it can go in the can. Return the new position.
+func (c *Can) Drop(fig Figure) Figure {
+    for {
+        land := fig.Land()
+        for i := 0; i < len(land); i++ {
+            row := land[i].Row()
+            if row == 0 {
+                // Already touching the bottom.
+                return fig
+            }
+            col := land[i].Column()
+            if c.Matrix[(row - 1) * c.cols + col] {
+                // Touching a build-up.
+                return fig
+            }
+        }
+        fig.Down()
+    }
+    return fig
+}
+
+func (c *Can) Land(fig Figure) {
+    land := fig.Land()
+    for i := 0; i < len(land); i++ {
+        row := land[i].Row()
+        col := land[i].Column()
+        c.Matrix[row*c.cols + col] = true
+    }
+}
+
+func (c *Can) CheckConflict(fig Figure) bool {
+    land := fig.Land()
+    for i := 0; i < len(land); i++ {
+        row := land[i].Row()
+        if row == 0 {
+            return true
+        }
+        col := land[i].Column()
+        if c.Matrix[(row - 1) * c.cols + col] {
+            return true
+        }
+    }
+    return false
+}

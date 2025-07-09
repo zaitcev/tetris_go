@@ -10,9 +10,6 @@ import (
 
     "golang.org/x/term"
 
-    // main.go:13:5: package game is not in std (/usr/lib/golang/src/game)
-    // found packages game (game.go) and main (main.go)
-    // XXX move to subdirectory?
     "zaitcev.us/tetris/game"
 )
 
@@ -71,7 +68,9 @@ func (d *Display) Update(newcan *game.Can, curfig game.Figure) {
     field := make([]bool, COLS*ROWS)
     copy(field, newcan.Matrix)
 
-    // XXX Check for a conflict of the new figure with the can, it's game over.
+    // Note that this blithedly lands regardless of the conflicts.
+    // We do this because that is what we display at the last moment
+    // when the can is full and a new figure appears.
     land := curfig.Land()
     for i := range land {
         field[land[i].Row()*COLS + land[i].Column()] = true
@@ -163,6 +162,7 @@ func timer(mainChan chan Event) {
 }
 
 func _main() error {
+    var curfig game.Figure
 
     mainChan := make(chan Event)
 
@@ -180,8 +180,9 @@ func _main() error {
     dp := NewDisplay()
     dp.Erase()
 
-    curfig := game.NewFigure(COLS, ROWS)
+    curfig = game.NewFigure(COLS, ROWS)
     dp.Update(can, curfig)
+    // XXX This is the place to check for conflict of figure with the field.
 
     go reader(mainChan)
     go timer(mainChan)
@@ -198,7 +199,16 @@ func _main() error {
             break
         }
 
-        if ev == EV_SPACE {          // land
+        if ev == EV_SPACE {          // drop
+            curfig = can.Drop(curfig)
+            dp.Update(can, curfig)
+            can.Land(curfig)
+            time.Sleep(50 * time.Millisecond)  // just to make it visible
+            curfig = game.NewFigure(COLS, ROWS)
+            dp.Update(can, curfig)
+            if can.CheckConflict(curfig) {
+                break
+            }
         } else if ev == EV_UP {      // rotate
         } else if ev == EV_LEFT {    // left
         } else if ev == EV_RIGHT {   // right
@@ -208,6 +218,14 @@ func _main() error {
                 can.MissionTime = d
                 dp.Time(can.MissionTime)
             }
+
+            //// XXX multiples of timer for better resolution
+            //curfig.Down()
+            //if can.CheckConflict(curfig) {
+            //    break
+            //}
+            //curfig = game.NewFigure(COLS, ROWS)
+            //dp.Update(can, curfig)
         }
     }
 
