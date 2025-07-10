@@ -219,13 +219,21 @@ func _main() error {
                 dp.Time(can.MissionTime)
             }
 
-            //// XXX multiples of timer for better resolution
-            //curfig.Down()
-            //if can.CheckConflict(curfig) {
-            //    break
-            //}
-            //curfig = game.NewFigure(COLS, ROWS)
-            //dp.Update(can, curfig)
+            // XXX multiples of timer for better resolution
+            next := can.Down1(curfig)
+            if next == nil {
+                // No update, it didn't move, just glues in.
+                // dp.Update(can, curfig)
+                can.Land(curfig)
+                curfig = game.NewFigure(COLS, ROWS)
+                dp.Update(can, curfig)
+                if can.CheckConflict(curfig) {
+                    break
+                }
+            } else {
+                curfig = next
+                dp.Update(can, curfig)
+            }
         }
     }
 

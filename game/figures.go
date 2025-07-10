@@ -18,26 +18,29 @@ func (f *barFigure) Init(cols int, rows int) {
     }
 }
 
-func (f *barFigure) Down() {
+func (f *barFigure) Down() Figure {
+    var ret barFigure
 
-    // This should be unnecessary, because the caller only ever invokes
-    // fig.Down() after checking for boundary. But we want to be safe,
-    // so we add this additional checking pass before committing.
-    // XXX maybe we can eliminate this with a clever re-factoring later.
     for i := 0; i < 4; i++ {
         if f.points[i].row == 0 {
-            return
+            return nil
         }
+        ret.points[i].row = f.points[i].row - 1
+        ret.points[i].col = f.points[i].col
     }
 
-    for i := 0; i < 4; i++ {
-        f.points[i].row--
-    }
+    return &ret
 }
+
+// func (f *barFigure) Copy() *barFigure {
+//     var ret barFigure
+//     ret.points = f.points
+//     return &ret
+// }
 
 type Figure interface {
     Land() []Point     // make an imprint in the can
-    Down()
+    Down() Figure
 }
 
 // This only generates the figure, without checking for a conflict
