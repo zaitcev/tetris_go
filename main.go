@@ -6,6 +6,7 @@ import (
     "fmt"
     // "math/rand"
     "os"
+    "strings"
     "time"
 
     "golang.org/x/term"
@@ -59,6 +60,14 @@ func NewDisplay() *Display {
 
 func (d *Display) Erase() {
     d.DP.Write([]byte("\033[2J"))
+
+    for i := 0; i < ROWS; i++ {
+        var line []string
+        line = append(line, fmt.Sprintf("\033[%d;%dH", TROFF+i+1, TCOFF+1))
+        for j := 0; j < COLS; j++ { line = append(line, " . ") }
+        d.DP.Write([]byte(strings.Join(line, "")))
+    }
+    d.DP.Write([]byte(fmt.Sprintf("\033[1;1H")))
 }
 
 // Update only updates the representation of the game field within the can.
@@ -76,22 +85,32 @@ func (d *Display) Update(newcan *game.Can, curfig game.Figure) {
         field[land[i].Row()*COLS + land[i].Column()] = true
     }
 
-    // Full refresh
-    // We can at least economize on syscalls.
+    // For now we only do a very basic row-by-row optimization.
+    // This way we don't have to inject additional cursor positions.
     for i := 0; i < ROWS; i++ {
-        line := fmt.Sprintf("\033[%d;%dH", TROFF+i+1, TCOFF+1)
-        for j := 0; j < COLS; j++ {
-            v := field[(ROWS-1-i)*COLS + j]
-            if v {
-                line += "[=]"
-            } else {
-                line += " . "
+        if !d.rowsEqual(field, ROWS-1-i) {
+            line := fmt.Sprintf("\033[%d;%dH", TROFF+i+1, TCOFF+1)
+            for j := 0; j < COLS; j++ {
+                v := field[(ROWS-1-i)*COLS + j]
+                if v {
+                    line += "[=]"
+                } else {
+                    line += " . "
+                }
             }
+            d.DP.Write([]byte(line))
         }
-        d.DP.Write([]byte(line))
     }
     d.DP.Write([]byte(fmt.Sprintf("\033[1;1H")))
     d.Matrix = field
+}
+
+// This is a technical subordinate of Display.Update.
+func (d *Display) rowsEqual(field []bool, row int) bool {
+    old_row := d.Matrix[row*COLS : (row+1)*COLS]
+    new_row := field[row*COLS : (row+1)*COLS]
+    for i, v := range old_row { if v != new_row[i] { return false } }
+    return true
 }
 
 func (d *Display) Time(mt time.Duration) {
@@ -182,7 +201,6 @@ func _main() error {
 
     curfig = game.NewFigure(COLS, ROWS)
     dp.Update(can, curfig)
-    // XXX This is the place to check for conflict of figure with the field.
 
     go reader(mainChan)
     go timer(mainChan)
