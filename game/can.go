@@ -56,13 +56,41 @@ func (c *Can) Down1(fig Figure) Figure {
     if next == nil {
         return nil
     }
-    land := next.Land()
-    for i := 0; i < len(land); i++ {
-        row := land[i].Row()
-        col := land[i].Column()
-        if c.Matrix[row * c.cols + col] {
-            return nil
-        }
+    if c.CheckConflict(next) {
+        return nil
+    }
+    return next
+}
+
+func (c *Can) Left1(fig Figure) Figure {
+    next := fig.Left()
+    if next == nil {
+        return nil
+    }
+    if c.CheckConflict(next) {
+        return nil
+    }
+    return next
+}
+
+func (c *Can) Right1(fig Figure) Figure {
+    next := fig.Right()
+    if next == nil {
+        return nil
+    }
+    if c.CheckConflict(next) {
+        return nil
+    }
+    return next
+}
+
+func (c *Can) Rotate(fig Figure) Figure {
+    next := fig.Rotate()
+    if next == nil {
+        return nil
+    }
+    if c.CheckConflict(next) {
+        return nil
     }
     return next
 }
@@ -80,13 +108,13 @@ func (c *Can) CheckConflict(fig Figure) bool {
     land := fig.Land()
     for i := 0; i < len(land); i++ {
         row := land[i].Row()
-        if row < 0 {
-            return true
-        }
+        // if row < 0 {
+        //     return true
+        // }
         col := land[i].Column()
-        if col >= c.cols {
-            return true
-        }
+        // if col >= c.cols {
+        //     return true
+        // }
         if c.Matrix[row*c.cols + col] {
             return true
         }

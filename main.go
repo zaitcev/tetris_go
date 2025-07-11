@@ -228,8 +228,23 @@ func _main() error {
                 break
             }
         } else if ev == EV_UP {      // rotate
+            next := can.Rotate(curfig)
+            if next != nil {
+                curfig = next
+                dp.Update(can, curfig)
+            }
         } else if ev == EV_LEFT {    // left
+            next := can.Left1(curfig)
+            if next != nil {
+                curfig = next
+                dp.Update(can, curfig)
+            }
         } else if ev == EV_RIGHT {   // right
+            next := can.Right1(curfig)
+            if next != nil {
+                curfig = next
+                dp.Update(can, curfig)
+            }
         } else {  // EV_TIME
             d := time.Since(can.MissionStart)
             if int(d.Seconds()) != int(can.MissionTime.Seconds()) {
