@@ -252,6 +252,7 @@ func _main() error {
             }
 
             // XXX multiples of timer for better resolution
+            // XXX reset timer when new figure appears at drop
             next := can.Down1(curfig)
             if next == nil {
                 // No update, it didn't move, just glues in.

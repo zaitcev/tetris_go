@@ -1,9 +1,9 @@
 //
 package game
 
-// import (
-//     "math/rand"
-// }
+import (
+    "math/rand"
+)
 
 type barFigure struct {
     points [4]Point
@@ -26,6 +26,9 @@ type genericFigure struct {
 
 type normalElFigure genericFigure
 type mirrorElFigure genericFigure
+type zigFigure genericFigure
+type zagFigure genericFigure
+type squareFigure genericFigure
 
 func (f *barFigure) Land() []Point {
     return f.points[0:4]
@@ -36,13 +39,16 @@ func (f *genericFigure) Land() []Point {
     ret[0] = f.pos
     for i := 0; i < 3; i++ {
         ret[i+1].col = f.points[i].col + f.pos.col
-	ret[i+1].row = f.points[i].row + f.pos.row
+        ret[i+1].row = f.points[i].row + f.pos.row
     }
     return ret
 }
 
 func (f *normalElFigure) Land() []Point {  return (*genericFigure)(f).Land() }
 func (f *mirrorElFigure) Land() []Point {  return (*genericFigure)(f).Land() }
+func (f *zigFigure) Land() []Point {  return (*genericFigure)(f).Land() }
+func (f *zagFigure) Land() []Point {  return (*genericFigure)(f).Land() }
+func (f *squareFigure) Land() []Point {  return (*genericFigure)(f).Land() }
 
 func (f *barFigure) Init(cols int, rows int) {
 
@@ -95,25 +101,66 @@ func (f *mirrorElFigure) Init(cols int, rows int) {
     f.cols = cols
 }
 
-func (f *barFigure) Down() Figure {
-    var ret barFigure
-    ret.cols = f.cols
-    ret.rows = f.rows
+func (f *zigFigure) Init(cols int, rows int) {
 
-    for i := 0; i < 4; i++ {
-        if f.points[i].row == 0 {
-            return nil
-        }
-        ret.points[i].row = f.points[i].row - 1
-        ret.points[i].col = f.points[i].col
-    }
+    f.pos.row = rows - 2
+    f.pos.col = cols/2
 
-    return &ret
+    //    [0]
+    // [x][1]
+    // [2]
+    f.points[0].row = 1
+    f.points[0].col = 1
+    f.points[1].row = 0
+    f.points[1].col = 1
+    f.points[2].row = -1
+    f.points[2].col = 0
+
+    f.rows = rows
+    f.cols = cols
 }
 
-// XXX This implementation is just dumb. It is both laborous and error-prone.
-// The figure must have a different implementation: center point and direction.
-// Land() has to compute the landed footprint, but rotation becomes trivial.
+func (f *zagFigure) Init(cols int, rows int) {
+
+    f.pos.row = rows - 2
+    f.pos.col = cols/2
+
+    //    [0]
+    //    [x][1]
+    //       [2]
+    f.points[0].row = 1
+    f.points[0].col = 0
+    f.points[1].row = 0
+    f.points[1].col = 1
+    f.points[2].row = -1
+    f.points[2].col = 1
+
+    f.rows = rows
+    f.cols = cols
+}
+
+func (f *squareFigure) Init(cols int, rows int) {
+
+    f.pos.row = rows - 2
+    f.pos.col = cols/2
+
+    //    [0][1]
+    //    [x][2]
+    f.points[0].row = 1
+    f.points[0].col = 0
+    f.points[1].row = 1
+    f.points[1].col = 1
+    f.points[2].row = 0
+    f.points[2].col = 1
+
+    f.rows = rows
+    f.cols = cols
+}
+
+// This approach is dumb. It is both laborous and error-prone.
+// We only leave it here as a monument to our shame. The barFigure
+// implements the same Figure as the genericFigure does, so it plugs
+// right in despite being like this.
 func (f *barFigure) Rotate() Figure {
     var ret barFigure
     ret.cols = f.cols
@@ -166,6 +213,7 @@ func (f *barFigure) Rotate() Figure {
     return &ret
 }
 
+// XXX should we push the figure away from the side if it cannot rotate?
 func (f *genericFigure) Rotate() Figure {
     ret := *f
 
@@ -195,6 +243,25 @@ func (f *genericFigure) Rotate() Figure {
 
 func (f *normalElFigure) Rotate() Figure { return (*genericFigure)(f).Rotate() }
 func (f *mirrorElFigure) Rotate() Figure { return (*genericFigure)(f).Rotate() }
+func (f *zigFigure) Rotate() Figure { return (*genericFigure)(f).Rotate() }
+func (f *zagFigure) Rotate() Figure { return (*genericFigure)(f).Rotate() }
+func (f *squareFigure) Rotate() Figure { return (*genericFigure)(f).Rotate() }
+
+func (f *barFigure) Down() Figure {
+    var ret barFigure
+    ret.cols = f.cols
+    ret.rows = f.rows
+
+    for i := 0; i < 4; i++ {
+        if f.points[i].row == 0 {
+            return nil
+        }
+        ret.points[i].row = f.points[i].row - 1
+        ret.points[i].col = f.points[i].col
+    }
+
+    return &ret
+}
 
 func (f *genericFigure) Down() Figure {
     ret := *f
@@ -209,6 +276,9 @@ func (f *genericFigure) Down() Figure {
 
 func (f *normalElFigure) Down() Figure {  return (*genericFigure)(f).Down() }
 func (f *mirrorElFigure) Down() Figure {  return (*genericFigure)(f).Down() }
+func (f *zigFigure) Down() Figure {  return (*genericFigure)(f).Down() }
+func (f *zagFigure) Down() Figure {  return (*genericFigure)(f).Down() }
+func (f *squareFigure) Down() Figure {  return (*genericFigure)(f).Down() }
 
 func (f *barFigure) Left() Figure {
     var ret barFigure
@@ -239,6 +309,9 @@ func (f *genericFigure) Left() Figure {
 
 func (f *normalElFigure) Left() Figure {  return (*genericFigure)(f).Left() }
 func (f *mirrorElFigure) Left() Figure {  return (*genericFigure)(f).Left() }
+func (f *zigFigure) Left() Figure {  return (*genericFigure)(f).Left() }
+func (f *zagFigure) Left() Figure {  return (*genericFigure)(f).Left() }
+func (f *squareFigure) Left() Figure {  return (*genericFigure)(f).Left() }
 
 func (f *barFigure) Right() Figure {
     var ret barFigure
@@ -269,6 +342,9 @@ func (f *genericFigure) Right() Figure {
 
 func (f *normalElFigure) Right() Figure {  return (*genericFigure)(f).Right() }
 func (f *mirrorElFigure) Right() Figure {  return (*genericFigure)(f).Right() }
+func (f *zigFigure) Right() Figure {  return (*genericFigure)(f).Right() }
+func (f *zagFigure) Right() Figure {  return (*genericFigure)(f).Right() }
+func (f *squareFigure) Right() Figure {  return (*genericFigure)(f).Right() }
 
 type Figure interface {
     Land() []Point     // make an imprint in the can
@@ -282,8 +358,32 @@ type Figure interface {
 // with the field in the can. We want to see the generated figure
 // overlaid on top of the field even if we quit immediately.
 func NewFigure(cols int, rows int) Figure {
-    // var f barFigure
-    var f normalElFigure
-    f.Init(cols, rows)
-    return &f
+    var ret Figure
+    switch rand.Intn(6) {
+    case 0:
+        var f0 barFigure
+        f0.Init(cols, rows)
+        ret = &f0
+    case 1:
+        var f1 normalElFigure
+        f1.Init(cols, rows)
+        ret = &f1
+    case 2:
+        var f2 mirrorElFigure
+        f2.Init(cols, rows)
+        ret = &f2
+    case 3:
+        var f3 zigFigure
+        f3.Init(cols, rows)
+        ret = &f3
+    case 4:
+        var f4 zagFigure
+        f4.Init(cols, rows)
+        ret = &f4
+    case 5:
+        var f5 squareFigure
+        f5.Init(cols, rows)
+        ret = &f5
+    }
+    return ret
 }
