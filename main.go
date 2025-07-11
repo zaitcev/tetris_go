@@ -4,7 +4,6 @@ package main
 import (
     "errors"
     "fmt"
-    // "math/rand"
     "os"
     "strings"
     "time"

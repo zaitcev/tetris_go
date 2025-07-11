@@ -1,8 +1,20 @@
 //
 package game
 
+// import (
+//     "math/rand"
+// }
+
 type barFigure struct {
     points [4]Point
+    cols, rows int
+}
+
+type genericFigure struct {
+    pos Point
+
+    // Relative positions for 3 blocks that are not the center.
+    points [3]Point
 
     // Ouch. A figure must carry the limits, because we made it
     // provide self-checking motion methods. It's not like we use
@@ -12,9 +24,25 @@ type barFigure struct {
     cols, rows int
 }
 
+type normalElFigure genericFigure
+type mirrorElFigure genericFigure
+
 func (f *barFigure) Land() []Point {
     return f.points[0:4]
 }
+
+func (f *genericFigure) Land() []Point {
+    ret := make([]Point, 4)
+    ret[0] = f.pos
+    for i := 0; i < 3; i++ {
+        ret[i+1].col = f.points[i].col + f.pos.col
+	ret[i+1].row = f.points[i].row + f.pos.row
+    }
+    return ret
+}
+
+func (f *normalElFigure) Land() []Point {  return (*genericFigure)(f).Land() }
+func (f *mirrorElFigure) Land() []Point {  return (*genericFigure)(f).Land() }
 
 func (f *barFigure) Init(cols int, rows int) {
 
@@ -24,6 +52,44 @@ func (f *barFigure) Init(cols int, rows int) {
         f.points[i].col = col + i
         f.points[i].row = row
     }
+
+    f.rows = rows
+    f.cols = cols
+}
+
+func (f *normalElFigure) Init(cols int, rows int) {
+
+    f.pos.row = rows - 3
+    f.pos.col = cols/2
+
+    //   [0]
+    //   [1]
+    //   [x][2]
+    f.points[0].row = 2
+    f.points[0].col = 0
+    f.points[1].row = 1
+    f.points[1].col = 0
+    f.points[2].row = 0
+    f.points[2].col = 1
+
+    f.rows = rows
+    f.cols = cols
+}
+
+func (f *mirrorElFigure) Init(cols int, rows int) {
+
+    f.pos.row = rows - 3
+    f.pos.col = cols/2
+
+    //    [0]
+    //    [1]
+    // [2][x]
+    f.points[0].row = 2
+    f.points[0].col = 0
+    f.points[1].row = 1
+    f.points[1].col = 0
+    f.points[2].row = 0
+    f.points[2].col = -1
 
     f.rows = rows
     f.cols = cols
@@ -100,6 +166,50 @@ func (f *barFigure) Rotate() Figure {
     return &ret
 }
 
+func (f *genericFigure) Rotate() Figure {
+    ret := *f
+
+    // The rotation matrix for -0.5*pi is:
+    //  [col] [  0   1 ]
+    //  [row] [ -1   0 ]
+    for i := 0; i < 3; i++ {
+        ret.points[i].col = f.points[i].row
+        ret.points[i].row = f.points[i].col * -1
+    }
+
+    // unnecessary for a rotation
+    // if ret.pos.col < 0 || ret.pos.col >= ret.cols ||
+    //    ret.pos.row < 0 || ret.pos.row >= ret.rows {
+    //     return nil
+    // }
+    for i := 0; i < 3; i++ {
+        newcol := ret.pos.col + ret.points[i].col
+        newrow := ret.pos.row + ret.points[i].row
+        if newcol < 0 || newcol >= ret.cols ||
+          newrow < 0 || newrow >= ret.rows {
+            return nil
+        }
+    }
+    return &ret
+}
+
+func (f *normalElFigure) Rotate() Figure { return (*genericFigure)(f).Rotate() }
+func (f *mirrorElFigure) Rotate() Figure { return (*genericFigure)(f).Rotate() }
+
+func (f *genericFigure) Down() Figure {
+    ret := *f
+    ret.pos.row = f.pos.row - 1
+
+    if ret.pos.row < 0 { return nil }
+    for i := 0; i < 3; i++ {
+        if ret.pos.row + ret.points[i].row < 0 { return nil }
+    }
+    return &ret
+}
+
+func (f *normalElFigure) Down() Figure {  return (*genericFigure)(f).Down() }
+func (f *mirrorElFigure) Down() Figure {  return (*genericFigure)(f).Down() }
+
 func (f *barFigure) Left() Figure {
     var ret barFigure
     ret.cols = f.cols
@@ -115,6 +225,20 @@ func (f *barFigure) Left() Figure {
 
     return &ret
 }
+
+func (f *genericFigure) Left() Figure {
+    ret := *f
+    ret.pos.col = f.pos.col - 1
+
+    if ret.pos.col < 0 { return nil }
+    for i := 0; i < 3; i++ {
+        if ret.pos.col + ret.points[i].col < 0 { return nil }
+    }
+    return &ret
+}
+
+func (f *normalElFigure) Left() Figure {  return (*genericFigure)(f).Left() }
+func (f *mirrorElFigure) Left() Figure {  return (*genericFigure)(f).Left() }
 
 func (f *barFigure) Right() Figure {
     var ret barFigure
@@ -132,11 +256,19 @@ func (f *barFigure) Right() Figure {
     return &ret
 }
 
-// func (f *barFigure) Copy() *barFigure {
-//     var ret barFigure
-//     ret.points = f.points
-//     return &ret
-// }
+func (f *genericFigure) Right() Figure {
+    ret := *f
+    ret.pos.col = f.pos.col + 1
+
+    if ret.pos.col >= ret.cols { return nil }
+    for i := 0; i < 3; i++ {
+        if ret.pos.col + ret.points[i].col >= ret.cols { return nil }
+    }
+    return &ret
+}
+
+func (f *normalElFigure) Right() Figure {  return (*genericFigure)(f).Right() }
+func (f *mirrorElFigure) Right() Figure {  return (*genericFigure)(f).Right() }
 
 type Figure interface {
     Land() []Point     // make an imprint in the can
@@ -150,7 +282,8 @@ type Figure interface {
 // with the field in the can. We want to see the generated figure
 // overlaid on top of the field even if we quit immediately.
 func NewFigure(cols int, rows int) Figure {
-    var f barFigure
+    // var f barFigure
+    var f normalElFigure
     f.Init(cols, rows)
     return &f
 }

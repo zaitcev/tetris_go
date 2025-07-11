@@ -13,7 +13,9 @@ func (p Point) Row() int { return p.row }
 
 // Initial representation is hand-rolled matrix, made out of a slice.
 // We use a slice in case we want to change the size of the can dynamically.
-// Note that rows start at the bottom of the can and go up, just because.
+//
+// Note that rows start at the bottom of the can and go up, in order
+// for the rotations to match the common or school layout of 2D trigonometry.
 //
 // This has turned into a general game state class.
 type Can struct {
