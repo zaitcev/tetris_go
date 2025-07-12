@@ -97,12 +97,36 @@ func (c *Can) Rotate(fig Figure) Figure {
     return next
 }
 
+// Calling Land means the caller discards the fig.
+// But we do not enforce that; there is no fig.Invalidate().
+// It's only called from a couple of places (technically one, even).
 func (c *Can) Land(fig Figure) {
     land := fig.Land()
     for i := 0; i < len(land); i++ {
         row := land[i].Row()
         col := land[i].Column()
         c.Matrix[row*c.cols + col] = true
+    }
+}
+
+func (c *Can) RowIsFull(row int) bool {
+    for i := 0; i < c.cols; i++ {
+        if !c.Matrix[row*c.cols + i] {
+            return false
+        }
+    }
+    return true
+}
+
+func (c *Can) Collapse(row int) {
+    for j := row; j < c.rows-1; j++ {
+        for i := 0; i < c.cols; i++ {
+            c.Matrix[j*c.cols + i] = c.Matrix[(j+1)*c.cols + i]
+        }
+    }
+    j := c.rows-1
+    for i := 0; i < c.cols; i++ {
+        c.Matrix[j*c.cols + i] = false
     }
 }
 

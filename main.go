@@ -79,9 +79,11 @@ func (d *Display) Update(newcan *game.Can, curfig game.Figure) {
     // Note that this blithedly lands regardless of the conflicts.
     // We do this because that is what we display at the last moment
     // when the can is full and a new figure appears.
-    land := curfig.Land()
-    for i := range land {
-        field[land[i].Row()*COLS + land[i].Column()] = true
+    if curfig != nil {
+        land := curfig.Land()
+        for i := range land {
+            field[land[i].Row()*COLS + land[i].Column()] = true
+        }
     }
 
     // For now we only do a very basic row-by-row optimization.
@@ -179,6 +181,22 @@ func timer(mainChan chan Event) {
     }
 }
 
+func landAndCollapse(dp *Display, can *game.Can, curfig *game.Figure) {
+
+    // Step 1: Land
+    can.Land(*curfig)
+    *curfig = nil
+
+    // Step 2: Collapse
+    for row := 0; row < ROWS; row++ {
+        for can.RowIsFull(row) {
+            can.Collapse(row)
+            dp.Update(can, nil)
+            time.Sleep(50 * time.Millisecond)  // make it visible
+        }
+    }
+}
+
 func _main() error {
     var curfig game.Figure
 
@@ -219,8 +237,7 @@ func _main() error {
         if ev == EV_SPACE {          // drop
             curfig = can.Drop(curfig)
             dp.Update(can, curfig)
-            can.Land(curfig)
-            time.Sleep(50 * time.Millisecond)  // just to make it visible
+            landAndCollapse(dp, can, &curfig)
             curfig = game.NewFigure(COLS, ROWS)
             dp.Update(can, curfig)
             if can.CheckConflict(curfig) {
@@ -255,9 +272,7 @@ func _main() error {
             // XXX reset timer when new figure appears at drop
             next := can.Down1(curfig)
             if next == nil {
-                // No update, it didn't move, just glues in.
-                // dp.Update(can, curfig)
-                can.Land(curfig)
+                landAndCollapse(dp, can, &curfig)
                 curfig = game.NewFigure(COLS, ROWS)
                 dp.Update(can, curfig)
                 if can.CheckConflict(curfig) {
