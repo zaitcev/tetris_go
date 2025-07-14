@@ -205,12 +205,13 @@ func _main() error {
     // This might need to be associated with the DP, use int(os.Stdin.Fd()).
     // But our current Display does not have open and close.
     // XXX Save or extract the keyboard interrupt character.
-    termState, err := term.MakeRaw(1)
+    termFd := int(os.Stdin.Fd())   // Fd() on Windows is uintptr, make it int
+    termState, err := term.MakeRaw(termFd)
     if err != nil {
         return err
     }
     // We want to print something after we restore the terminal.
-    // defer term.Restore(1, termState)
+    // defer term.Restore(termFd, termState)
 
     can := game.NewCan(COLS, ROWS)
     dp := NewDisplay()
@@ -286,7 +287,7 @@ func _main() error {
     }
 
     dp.DP.Write([]byte(fmt.Sprintf("\033[%d;1H", TROFF+ROWS+1)))
-    term.Restore(1, termState)
+    term.Restore(termFd, termState)
 
     if ev == EV_ERROR {
         return lastLetter
